@@ -19,7 +19,7 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
     const event = found.data as Omit<WorldEvent, "attendees">;
 
     const [members, attendance, assignments] = await Promise.all([
-      db.from("members").select("id, display_name, xp, role").eq("group_id", me.group_id).order("xp", { ascending: false }),
+      db.from("members").select("id, display_name, role").eq("group_id", me.group_id).order("display_name"),
       db.from("event_attendance").select("member_id").eq("event_id", id),
       db.from("topic_assignments").select("member_id, kind, topic, revealed").eq("event_id", id),
     ]);
@@ -29,7 +29,7 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
       ? must(
           await db
             .from("quests")
-            .select("id, title, description, xp, group_wide, counter_target, counter_unit, assigned_to")
+            .select("id, title, description, group_wide, counter_target, counter_unit, assigned_to")
             .eq("event_id", id)
             .order("created_at"),
         )

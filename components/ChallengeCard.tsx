@@ -22,15 +22,12 @@ export function ChallengeCard({ challenge: c, names, meId, now, busy, onRespond,
 
   return (
     <li className="rounded-xl border border-zinc-800 p-3">
-      <div className="flex justify-between gap-2 text-sm">
-        <span className="text-zinc-400">{isIssuer ? `You challenged ${other}` : `${other} challenged you`}</span>
-        <span className="text-emerald-400">{c.stake_xp} XP</span>
-      </div>
+      <p className="text-sm text-zinc-400">{isIssuer ? `You challenged ${other}` : `${other} challenged you`}</p>
       <p className="my-1 font-medium">{c.prompt}</p>
       <p className="text-xs text-zinc-500">
         {status}
         {status === "pending" && ` | ${formatDuration(remainingMs(c.expires_at, now))} left`}
-        {status === "resolved" && c.winner_id && ` | winner ${names[c.winner_id]}`}
+        {status === "resolved" && c.winner_id && ` | won by ${names[c.winner_id]}`}
         {status === "proposed" && c.proposed_winner_id && ` | proposed winner ${names[c.proposed_winner_id]}`}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">

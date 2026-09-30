@@ -1,18 +1,18 @@
 # Group Quest
 
-A mobile-friendly web app for a small friend group to play a shared grind game. No native app, no push notifications, no accounts: the admin hands each person a personal secret link.
+A mobile-friendly web app for a small friend group to play a shared grind game. It is purely cooperative: there are no points, no percentages and no rankings, only what the group gets done together. No native app, no push notifications, no accounts: the admin hands each person a personal secret link.
 
 ## The three mechanics
 
-1. **Group targets and clock-in.** The group has a pooled daily and weekly target in minutes. Members clock in and out with an optional note. The dashboard shows pooled progress, each member's contribution, who is clocked in right now, and the XP leaderboard. There are also pooled count targets (run km, squats, free throws) that members log contributions to.
-2. **World events.** Any member schedules an event with a title, a spot label and a time. Lifecycle: scheduled, gathering, active, completed. Attendance is honor system ("I'm here"). Once enough members are here (default 2, set per event) the host starts the event, which reveals its quests. The host adds quests and can randomly assign presentation topics or dishes. Quests can be plain, group-wide, counters (rounds, reps), or assigned to one member and confirmed by another. Completing a quest awards XP atomically and only once.
-3. **Night quick-time challenges.** After the group's night start hour (default 21:00, in the group's timezone, open until 05:00) any member can challenge another: prompt, XP stake, response window (default 15 minutes). The target sees a countdown and accepts or declines. After accepting, the issuer picks the winner and the target confirms or disputes. Pending challenges past their deadline are shown as expired (computed at read time, no cron). The winner receives the stake. Issuing is enforced in SQL and mirrored in the UI.
+1. **Group targets and clock-in.** The group has a pooled daily and weekly target in minutes. Members clock in and out with an optional note. The dashboard shows the pooled total as plain hours (for example "14h 20m of 20h") and who is clocked in right now with a running timer. There are also pooled count targets (run km, squats, free throws) shown as group totals (for example "1,040 / 1,500 shots") that members log to. Nothing is broken down per member.
+2. **World events.** Any member schedules an event with a title, a spot label and a time. Lifecycle: scheduled, gathering, active, completed. Attendance is honor system ("I'm here"). Once enough members are here (default 2, set per event) the host starts the event, which reveals its quests. The host adds quests and can randomly assign presentation topics or dishes. Quests can be plain, group-wide, counters (rounds, reps), or assigned to one member and confirmed by another. A quest card shows done or not done, and the event page shows "X of Y done". Counters (for example Monopoly rounds) are plain counts. Completion is recorded atomically and only once.
+3. **Night quick-time challenges.** After the group's night start hour (default 21:00, in the group's timezone, open until 05:00) any member can challenge another: prompt, response window (default 15 minutes). The target sees a countdown and accepts or declines. After accepting, the issuer picks the winner and the target confirms or disputes. Pending challenges past their deadline are shown as expired (computed at read time, no cron). The winner is just recorded and shown as "won by <name>"; nothing is awarded. Issuing is enforced in SQL and mirrored in the UI.
 
 ## How access works
 
 - There is no login. `members.access_key` holds a long random secret per person.
 - Visiting `/k/<key>` validates the key, sets an httpOnly cookie and redirects to `/`. Everything else reads that cookie, and anyone without a valid one lands on "Ask for your key".
-- All database access goes through Next.js server actions and route handlers using the Supabase service role key (server only). RLS is enabled on every table with no policies, so the anon key reads nothing. Rules (night window, host checks, atomic XP) live in SQL functions that take the acting `p_member` id resolved server side.
+- All database access goes through Next.js server actions and route handlers using the Supabase service role key (server only). RLS is enabled on every table with no policies, so the anon key reads nothing. Rules (night window, host checks, atomic quest completion) live in SQL functions that take the acting `p_member` id resolved server side.
 - Anyone holding a link is that member, so send links privately. Regenerate a key with `pnpm regen:key "Name"`; the old link stops working immediately.
 
 ## Realtime
@@ -40,9 +40,11 @@ If `pnpm` is not on PATH use `corepack pnpm` (the corepack shim may need to be o
 
 The admin sees a **Load Saturday template** button on the dashboard (once per group). It creates:
 
-- Pooled targets: Run 20 km, Squats 300, Free throw line shots 1500, Bottle flips 200.
+- Group targets: Run 20 km, Squats 300, Free throw line shots 1500, Bottle flips 200 (shown as group totals only).
 - **Scooter Day** (spot-based): rent scooters, airport stop, reel shoot, vlog (all group-wide).
 - **House Party** (night): Minecraft one shot, Monopoly 20 rounds (group counter), cook food (group-wide), delete Insta and Snapchat (each member), and one presentation quest per member confirmed by another member. Apply `0002_template_v2.sql` after `0001_init.sql`.
+
+The database still has legacy `xp` and `stake_xp` columns from the original schema. The app ignores them: it never reads or shows them and always passes 0 when calling the SQL functions.
 
 Hosts can randomly assign presentation topics and dishes from a list on the event page; dishes stay hidden until the host presses Reveal.
 

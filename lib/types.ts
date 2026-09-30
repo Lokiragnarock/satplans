@@ -5,13 +5,11 @@ export interface Me {
   group_id: string;
   display_name: string;
   role: "admin" | "member";
-  xp: number;
 }
 
 export interface MemberLite {
   id: string;
   display_name: string;
-  xp: number;
   role: "admin" | "member";
 }
 
@@ -42,19 +40,12 @@ export interface GroupTarget {
   progress: number;
 }
 
-export interface Contribution {
-  target_id: string;
-  member_id: string;
-  amount: number;
-}
-
 export interface DashboardData {
   me: Me;
   group: GroupInfo;
   members: MemberLite[];
   entries: TimeEntry[];
   targets: GroupTarget[];
-  contributions: Contribution[];
 }
 
 export type EventStatus = "scheduled" | "gathering" | "active" | "completed";
@@ -74,7 +65,6 @@ export interface Quest {
   id: string;
   title: string;
   description: string;
-  xp: number;
   group_wide: boolean;
   counter_target: number | null;
   counter_unit: string | null;
@@ -111,7 +101,6 @@ export interface Challenge {
   issuer_id: string;
   target_id: string;
   prompt: string;
-  stake_xp: number;
   status: ChallengeStatus;
   expires_at: string;
   proposed_winner_id: string | null;

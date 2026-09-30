@@ -49,7 +49,6 @@ export async function addQuest(input: {
   eventId: string;
   title: string;
   description: string;
-  xp: number;
   groupWide: boolean;
   counterTarget: number | null;
   counterUnit: string;
@@ -58,7 +57,7 @@ export async function addQuest(input: {
     p_event: input.eventId,
     p_title: input.title,
     p_description: input.description,
-    p_xp: input.xp,
+    p_xp: 0,
     p_group_wide: input.groupWide,
     p_counter_target: input.counterTarget,
     p_counter_unit: input.counterUnit,
@@ -85,11 +84,11 @@ export async function loadTemplate() {
   return call("load_saturday_template");
 }
 
-export async function issueChallenge(input: { targetId: string; prompt: string; stake: number; windowMinutes: number }) {
+export async function issueChallenge(input: { targetId: string; prompt: string; windowMinutes: number }) {
   return call("issue_challenge", {
     p_target: input.targetId,
     p_prompt: input.prompt,
-    p_stake: input.stake,
+    p_stake: 0,
     p_window_minutes: input.windowMinutes,
   });
 }

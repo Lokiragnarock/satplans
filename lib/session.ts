@@ -10,7 +10,7 @@ export async function memberForKey(key: string | undefined): Promise<Me | null> 
   if (!key || key.length < 24 || key.length > 200) return null;
   const { data, error } = await adminClient()
     .from("members")
-    .select("id, group_id, display_name, role, xp")
+    .select("id, group_id, display_name, role")
     .eq("access_key", key)
     .maybeSingle();
   if (error) throw new Error(error.message);

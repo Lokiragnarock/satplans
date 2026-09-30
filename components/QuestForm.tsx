@@ -8,7 +8,6 @@ interface Props {
   onAdd: (input: {
     title: string;
     description: string;
-    xp: number;
     groupWide: boolean;
     counterTarget: number | null;
     counterUnit: string;
@@ -18,7 +17,6 @@ interface Props {
 export function QuestForm({ busy, onAdd }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [xp, setXp] = useState("20");
   const [groupWide, setGroupWide] = useState(false);
   const [counterUnit, setCounterUnit] = useState("");
   const [counterTarget, setCounterTarget] = useState("");
@@ -32,7 +30,6 @@ export function QuestForm({ busy, onAdd }: Props) {
           const ok = await onAdd({
             title,
             description,
-            xp: Number(xp) || 0,
             groupWide,
             counterTarget: counterTarget ? Number(counterTarget) : null,
             counterUnit,
@@ -54,7 +51,6 @@ export function QuestForm({ busy, onAdd }: Props) {
           onChange={(e) => setDescription(e.target.value)}
         />
         <div className="flex gap-2">
-          <input className={inputClass} type="number" min="0" placeholder="XP" value={xp} onChange={(e) => setXp(e.target.value)} />
           <input className={inputClass} placeholder="Counter unit (optional)" value={counterUnit} onChange={(e) => setCounterUnit(e.target.value)} />
           <input
             className={inputClass}

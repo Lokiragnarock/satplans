@@ -7,7 +7,6 @@ import { useRunner } from "@/hooks/useRunner";
 import { clockIn, clockOut, loadTemplate, logContribution } from "@/app/actions";
 import { ClockPanel } from "@/components/ClockPanel";
 import { ClockedInList } from "@/components/ClockedInList";
-import { Leaderboard } from "@/components/Leaderboard";
 import { PooledProgress } from "@/components/PooledProgress";
 import { TargetsPanel } from "@/components/TargetsPanel";
 import { ErrorNote } from "@/components/ui";
@@ -24,19 +23,7 @@ export default function DashboardPage() {
     const tz = data.group.timezone;
     const build = (period: "day" | "week", goal: number) => {
       const { start, end } = periodBounds(now, tz, period);
-      const perMember = data.members
-        .map((m) => ({
-          id: m.id,
-          name: m.display_name,
-          minutes: minutesInPeriod(
-            data.entries.filter((e) => e.member_id === m.id),
-            start,
-            end,
-            now,
-          ),
-        }))
-        .sort((a, b) => b.minutes - a.minutes);
-      return { goal, perMember, done: perMember.reduce((s, m) => s + m.minutes, 0) };
+      return { goal, done: minutesInPeriod(data.entries, start, end, now) };
     };
     return {
       daily: build("day", data.group.daily_target_minutes),
@@ -69,19 +56,16 @@ export default function DashboardPage() {
           note: e.note,
         }))}
       />
-      <PooledProgress label="Today" doneMinutes={view.daily.done} goalMinutes={view.daily.goal} perMember={view.daily.perMember} />
-      <PooledProgress label="This week" doneMinutes={view.weekly.done} goalMinutes={view.weekly.goal} perMember={view.weekly.perMember} />
+      <PooledProgress label="Today" doneMinutes={view.daily.done} goalMinutes={view.daily.goal} />
+      <PooledProgress label="This week" doneMinutes={view.weekly.done} goalMinutes={view.weekly.goal} />
       <TargetsPanel
         targets={data.targets}
-        contributions={data.contributions}
-        names={names}
         busy={busy}
         isAdmin={data.me.role === "admin"}
         templateLoaded={data.group.template_loaded}
         onLog={(id, amount) => run(() => logContribution(id, amount))}
         onLoadTemplate={() => run(() => loadTemplate())}
       />
-      <Leaderboard members={data.members} meId={data.me.id} />
     </>
   );
 }
