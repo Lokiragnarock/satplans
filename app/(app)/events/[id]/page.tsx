@@ -134,18 +134,20 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
       {isHost && event.status !== "completed" && locked === null && (
         <QuestForm busy={busy} onAdd={(input) => run(() => addQuest({ eventId: id, ...input }))} />
       )}
-      <AssignmentsPanel
-        title="Who eats what"
-        hint="One dish per line, at least one per member"
-        assignments={dishes}
-        members={members}
-        meId={me.id}
-        isHost={isHost}
-        busy={busy}
-        locked={locked !== null}
-        onAssign={(items) => run(() => assignRandom(id, "dish", items))}
-        onReveal={() => run(() => revealAssignments(id, "dish"))}
-      />
+      {!ppt && (
+        <AssignmentsPanel
+          title="Who eats what"
+          hint="One dish per line, at least one per member"
+          assignments={dishes}
+          members={members}
+          meId={me.id}
+          isHost={isHost}
+          busy={busy}
+          locked={locked !== null}
+          onAssign={(items) => run(() => assignRandom(id, "dish", items))}
+          onReveal={() => run(() => revealAssignments(id, "dish"))}
+        />
+      )}
     </>
   );
 }
