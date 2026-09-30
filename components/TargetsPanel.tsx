@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, ProgressBar, inputClass } from "./ui";
+import { Button, Icon, ProgressBar, accentStyle, inputClass } from "./ui";
+import type { Accent } from "./ui";
 import { progress } from "@/lib/window";
 import type { GroupTarget } from "@/lib/types";
 
@@ -14,11 +15,20 @@ interface Props {
   onLoadTemplate: () => void;
 }
 
-function LogForm({ unit, busy, onLog }: { unit: string; busy: boolean; onLog: (n: number) => void }) {
+function styleFor(label: string): { accent: Accent; icon: string } {
+  const l = label.toLowerCase();
+  if (l.includes("run")) return { accent: "cyan", icon: "directions_run" };
+  if (l.includes("squat")) return { accent: "orange", icon: "fitness_center" };
+  if (l.includes("throw") || l.includes("shot")) return { accent: "green", icon: "sports_basketball" };
+  if (l.includes("bottle")) return { accent: "peach", icon: "water_drop" };
+  return { accent: "peach", icon: "flag" };
+}
+
+function LogForm({ unit, accent, busy, onLog }: { unit: string; accent: Accent; busy: boolean; onLog: (n: number) => void }) {
   const [value, setValue] = useState("");
   return (
     <form
-      className="mt-2 flex gap-2"
+      className="mt-3 flex gap-2"
       onSubmit={(e) => {
         e.preventDefault();
         const n = Number(value);
@@ -36,30 +46,51 @@ function LogForm({ unit, busy, onLog }: { unit: string; busy: boolean; onLog: (n
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />
-      <Button type="submit" variant="ghost" disabled={busy}>
-        Log
-      </Button>
+      <button
+        type="submit"
+        disabled={busy}
+        className={`label-md shrink-0 rounded-lg px-4 !text-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${accentStyle[accent].btn}`}
+      >
+        + Log
+      </button>
     </form>
   );
 }
 
 export function TargetsPanel({ targets, busy, isAdmin, templateLoaded, onLog, onLoadTemplate }: Props) {
   return (
-    <Card title="Group targets">
-      {targets.length === 0 && <p className="text-sm text-zinc-500">No targets yet.</p>}
-      <div className="space-y-5">
+    <section>
+      <h2 className="label-md mb-3 flex items-center gap-2 text-on-surface-variant">
+        <Icon name="flag" className="!text-[18px] text-primary-container" />
+        Team targets
+      </h2>
+      {targets.length === 0 && <p className="text-sm text-on-surface-variant/70">No targets yet.</p>}
+      <div className="flex flex-col gap-3">
         {targets.map((t) => {
           const p = progress(t.progress, t.goal);
+          const { accent, icon } = styleFor(t.label);
+          const a = accentStyle[accent];
           return (
-            <div key={t.id}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span className="font-medium">{t.label}</span>
-                <span className="text-zinc-400">
-                  {t.progress.toLocaleString("en-US")} / {t.goal.toLocaleString("en-US")} {t.unit}
+            <div key={t.id} className="rounded-xl border border-white/5 bg-surface-container p-4">
+              <div className="flex items-center gap-3">
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${a.tile}`}>
+                  <Icon name={icon} />
                 </span>
+                <div className="min-w-0">
+                  <p className="label-md text-on-surface-variant">{t.label}</p>
+                  <p className="scoreboard-title">
+                    <span className={a.text}>{t.progress.toLocaleString("en-US")}</span>
+                    <span className="text-on-surface/40">
+                      {" "}
+                      / {t.goal.toLocaleString("en-US")} {t.unit}
+                    </span>
+                  </p>
+                </div>
               </div>
-              <ProgressBar pct={p.pct} />
-              <LogForm unit={t.unit} busy={busy} onLog={(n) => onLog(t.id, n)} />
+              <LogForm unit={t.unit} accent={accent} busy={busy} onLog={(n) => onLog(t.id, n)} />
+              <div className="mt-3">
+                <ProgressBar pct={p.pct} accent={accent} />
+              </div>
             </div>
           );
         })}
@@ -69,6 +100,6 @@ export function TargetsPanel({ targets, busy, isAdmin, templateLoaded, onLog, on
           Load Saturday template
         </Button>
       )}
-    </Card>
+    </section>
   );
 }

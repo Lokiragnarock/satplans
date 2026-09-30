@@ -25,18 +25,18 @@ export function AssignmentsPanel({ title, hint, assignments, members, meId, isHo
   if (!isHost && assignments.length === 0) return null;
 
   return (
-    <Card title={title}>
+    <Card title={title} icon="shuffle">
       {mine && (
         <p className="mb-3 text-sm">
-          Yours: <span className="font-semibold text-emerald-300">{mine.revealed ? mine.topic : "hidden until reveal"}</span>
+          Yours: <span className="font-semibold text-tertiary">{mine.revealed ? mine.topic : "hidden until reveal"}</span>
         </p>
       )}
       {assignments.length > 0 && (
-        <ul className="mb-3 space-y-1 text-sm">
+        <ul className="mb-3 space-y-2 text-sm">
           {assignments.map((a) => (
             <li key={a.member_id} className="flex justify-between">
               <span>{name(a.member_id)}</span>
-              <span className="text-zinc-400">{a.revealed ? a.topic : "?"}</span>
+              <span className="text-on-surface/60">{a.revealed ? a.topic : "?"}</span>
             </li>
           ))}
         </ul>

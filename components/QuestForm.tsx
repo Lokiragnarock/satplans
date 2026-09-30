@@ -22,7 +22,7 @@ export function QuestForm({ busy, onAdd }: Props) {
   const [counterTarget, setCounterTarget] = useState("");
 
   return (
-    <Card title="Add a quest">
+    <Card title="Add a quest" icon="add_task">
       <form
         className="space-y-2"
         onSubmit={async (e) => {
@@ -61,7 +61,7 @@ export function QuestForm({ busy, onAdd }: Props) {
             onChange={(e) => setCounterTarget(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
+        <label className="flex items-center gap-2 text-sm text-on-surface/60">
           <input type="checkbox" checked={groupWide} onChange={(e) => setGroupWide(e.target.checked)} />
           Whole group quest (one completion counts for everyone here)
         </label>

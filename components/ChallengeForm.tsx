@@ -18,8 +18,8 @@ export function ChallengeForm({ members, open, closedReason, busy, onIssue }: Pr
   const [windowMinutes, setWindowMinutes] = useState("15");
 
   return (
-    <Card title="Issue a challenge">
-      {!open && <p className="mb-3 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300">{closedReason}</p>}
+    <Card title="Issue a challenge" icon="swords">
+      {!open && <p className="mb-3 rounded-lg bg-surface-container-high px-3 py-2 text-sm text-on-surface/80">{closedReason}</p>}
       <form
         className="space-y-2"
         onSubmit={async (e) => {
@@ -50,7 +50,7 @@ export function ChallengeForm({ members, open, closedReason, busy, onIssue }: Pr
             onChange={(e) => setPrompt(e.target.value)}
           />
           <div className="flex gap-2">
-            <label className="flex-1 text-xs text-zinc-400">
+            <label className="flex-1 label-sm text-on-surface-variant">
               Window (min)
               <input
                 className={inputClass}

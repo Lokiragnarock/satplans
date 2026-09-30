@@ -9,12 +9,14 @@ import { ClockPanel } from "@/components/ClockPanel";
 import { ClockedInList } from "@/components/ClockedInList";
 import { PooledProgress } from "@/components/PooledProgress";
 import { TargetsPanel } from "@/components/TargetsPanel";
-import { ErrorNote } from "@/components/ui";
+import { NextEventCard, pickNextEvent } from "@/components/NextEventCard";
+import { ErrorNote, LoadingNote } from "@/components/ui";
 import { minutesInPeriod, periodBounds } from "@/lib/window";
-import type { DashboardData } from "@/lib/types";
+import type { DashboardData, WorldEvent } from "@/lib/types";
 
 export default function DashboardPage() {
   const { data, error, refresh } = useLive<DashboardData>("/api/dashboard");
+  const { data: eventsData } = useLive<{ events: WorldEvent[] }>("/api/events", 15000);
   const { run, busy, error: actionError } = useRunner(refresh);
   const now = useNow();
 
@@ -31,15 +33,20 @@ export default function DashboardPage() {
     };
   }, [data, now]);
 
-  if (!data || !view) return <p className="text-zinc-500">{error ?? "Loading"}</p>;
+  if (!data || !view) return <LoadingNote message={error} />;
 
-  const names = Object.fromEntries(data.members.map((m) => [m.id, m.display_name]));
   const open = data.entries.filter((e) => !e.ended_at);
   const mine = open.find((e) => e.member_id === data.me.id);
 
   return (
     <>
       <ErrorNote message={actionError ?? error} />
+      <PooledProgress
+        dailyDoneMinutes={view.daily.done}
+        dailyGoalMinutes={view.daily.goal}
+        weeklyDoneMinutes={view.weekly.done}
+        weeklyGoalMinutes={view.weekly.goal}
+      />
       <ClockPanel
         startedAt={mine?.started_at ?? null}
         now={now}
@@ -49,15 +56,12 @@ export default function DashboardPage() {
       />
       <ClockedInList
         now={now}
-        people={open.map((e) => ({
-          id: e.member_id,
-          name: names[e.member_id] ?? "?",
-          startedAt: e.started_at,
-          note: e.note,
+        people={data.members.map((m) => ({
+          id: m.id,
+          name: m.display_name,
+          startedAt: open.find((e) => e.member_id === m.id)?.started_at ?? null,
         }))}
       />
-      <PooledProgress label="Today" doneMinutes={view.daily.done} goalMinutes={view.daily.goal} />
-      <PooledProgress label="This week" doneMinutes={view.weekly.done} goalMinutes={view.weekly.goal} />
       <TargetsPanel
         targets={data.targets}
         busy={busy}
@@ -66,6 +70,7 @@ export default function DashboardPage() {
         onLog={(id, amount) => run(() => logContribution(id, amount))}
         onLoadTemplate={() => run(() => loadTemplate())}
       />
+      <NextEventCard event={pickNextEvent(eventsData?.events ?? [], now)} now={now} />
     </>
   );
 }

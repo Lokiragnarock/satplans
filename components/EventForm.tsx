@@ -15,7 +15,7 @@ export function EventForm({ busy, onCreate }: Props) {
   const [min, setMin] = useState("2");
 
   return (
-    <Card title="Schedule a world event">
+    <Card title="Schedule a world event" icon="event">
       <form
         className="space-y-2"
         onSubmit={async (e) => {
@@ -37,7 +37,7 @@ export function EventForm({ busy, onCreate }: Props) {
           onChange={(e) => setSpot(e.target.value)}
         />
         <input className={inputClass} type="datetime-local" required value={when} onChange={(e) => setWhen(e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
+        <label className="flex items-center gap-2 text-sm text-on-surface/60">
           Members needed to start
           <input
             className={`${inputClass} w-20`}
