@@ -10,7 +10,9 @@ import {
   isNightWindow,
   minutesInPeriod,
   periodBounds,
+  prepLockReason,
   progress,
+  relativeTime,
   remainingMs,
 } from "./window";
 
@@ -176,5 +178,24 @@ describe("hours clipped to the game window", () => {
       { started_at: "2026-10-04T07:00:00Z", ended_at: null },
     ];
     expect(minutesInPeriod(spans, start, end, now)).toBe(60 + 120);
+  });
+});
+
+describe("prepLockReason", () => {
+  it("allows prep before and during the game only", () => {
+    expect(prepLockReason("before")).toBeNull();
+    expect(prepLockReason("live")).toBeNull();
+    expect(prepLockReason("unset")).not.toBeNull();
+    expect(prepLockReason("ended")).not.toBeNull();
+  });
+});
+
+describe("relativeTime", () => {
+  const now = new Date("2026-10-31T12:00:00Z");
+  it("formats recent and older times", () => {
+    expect(relativeTime("2026-10-31T11:59:40Z", now)).toBe("just now");
+    expect(relativeTime("2026-10-31T11:50:00Z", now)).toBe("10 min ago");
+    expect(relativeTime("2026-10-31T09:00:00Z", now)).toBe("3 h ago");
+    expect(relativeTime("2026-10-29T12:00:00Z", now)).toBe("2 d ago");
   });
 });

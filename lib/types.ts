@@ -84,6 +84,13 @@ export interface Assignment {
   revealed: boolean;
 }
 
+export interface TopicSubmission {
+  id: string;
+  member_id: string;
+  topic: string;
+  created_at: string;
+}
+
 export interface EventDetail {
   me: Me;
   event: WorldEvent;
@@ -93,6 +100,8 @@ export interface EventDetail {
   questsHidden: boolean;
   completions: QuestCompletion[];
   assignments: Assignment[];
+  submissions: TopicSubmission[];
+  submissionsAvailable: boolean;
   game: GameWindowInfo;
 }
 

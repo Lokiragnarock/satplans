@@ -1,7 +1,8 @@
 import { adminClient } from "@/lib/supabase";
 import { must, withMember } from "@/lib/api";
 import { loadGame } from "@/lib/game";
-import type { Assignment, EventDetail, MemberLite, Quest, QuestCompletion, WorldEvent } from "@/lib/types";
+import { isPptEvent } from "@/lib/allocate";
+import type { Assignment, EventDetail, MemberLite, Quest, QuestCompletion, TopicSubmission, WorldEvent } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,8 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
       db.from("topic_assignments").select("member_id, kind, topic, revealed").eq("event_id", id),
     ]);
 
-    const showQuests = event.status === "active" || event.status === "completed" || event.host_id === me.id;
+    const showQuests =
+      event.status === "active" || event.status === "completed" || event.host_id === me.id || isPptEvent(event.title);
     const quests = showQuests
       ? must(
           await db
@@ -39,6 +41,19 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
     const completions = questIds.length
       ? must(await db.from("quest_completions").select("quest_id, member_id, count, completed_at").in("quest_id", questIds))
       : [];
+
+    // topic_submissions comes from migration 0004; degrade to an empty list if it is not applied yet.
+    let submissions: TopicSubmission[] = [];
+    let submissionsAvailable = true;
+    const subRes = await db
+      .from("topic_submissions")
+      .select("id, member_id, topic, created_at")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false });
+    if (subRes.error) {
+      if (!/topic_submissions|schema cache|does not exist/i.test(subRes.error.message)) throw new Error(subRes.error.message);
+      submissionsAvailable = false;
+    } else submissions = (subRes.data ?? []) as TopicSubmission[];
 
     const attendees = must(attendance).map((a: { member_id: string }) => a.member_id);
     const assignmentRows = (must(assignments) as Assignment[]).map((a) => ({
@@ -55,6 +70,8 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
       questsHidden: !showQuests,
       completions: completions as QuestCompletion[],
       assignments: assignmentRows,
+      submissions,
+      submissionsAvailable,
       game: await loadGame(me.group_id),
     };
   });

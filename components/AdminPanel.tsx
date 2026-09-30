@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function AdminPanel({ members, startsAtLocal, targetHours, durationHours, busy, onSaveSettings, onAddMember }: Props) {
-  const [start, setStart] = useState(startsAtLocal);
+  const [start, setStart] = useState(startsAtLocal || "2026-10-31T10:00");
   const [target, setTarget] = useState(targetHours ? String(targetHours) : "");
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);

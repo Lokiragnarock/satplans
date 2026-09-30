@@ -1,6 +1,6 @@
 import "server-only";
 import { adminClient } from "./supabase";
-import { gameInfoFromRow, lockReason, type GameWindowInfo } from "./window";
+import { gameInfoFromRow, lockReason, prepLockReason, type GameWindowInfo } from "./window";
 import type { GroupInfo, Me } from "./types";
 
 // select("*") so this keeps working before migration 0003 adds the window columns.
@@ -29,5 +29,13 @@ export async function loadGame(groupId: string): Promise<GameWindowInfo> {
 export async function requireLive(me: Me): Promise<void> {
   const game = gameInfoFromRow(await loadGroupRow(me.group_id));
   const reason = lockReason(game.phase);
+  if (reason) throw new Error(reason);
+}
+
+// Prep writes (PPT topic submissions) are allowed before the game starts and while it is live,
+// but not when the start time is unset or the game has ended.
+export async function requirePrepOrLive(me: Me): Promise<void> {
+  const game = gameInfoFromRow(await loadGroupRow(me.group_id));
+  const reason = prepLockReason(game.phase);
   if (reason) throw new Error(reason);
 }

@@ -3,7 +3,8 @@
 import { randomBytes } from "node:crypto";
 import { adminClient } from "@/lib/supabase";
 import { getMember } from "@/lib/session";
-import { requireLive } from "@/lib/game";
+import { requireLive, requirePrepOrLive } from "@/lib/game";
+import { allocateTopics, isPptEvent, isPresentationQuest } from "@/lib/allocate";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -156,6 +157,135 @@ export async function addMember(name: string): Promise<AddMemberResult> {
       .insert({ group_id: me.group_id, display_name: display, role: "member", access_key: key });
     if (error) return { ok: false, error: error.message };
     return { ok: true, key, name: display };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Server error" };
+  }
+}
+
+const MIGRATION_0004_HINT = "Apply supabase/migrations/0004_ppt_night.sql first";
+const MAX_TOPIC_LENGTH = 120;
+
+function migrationAware(message: string): string {
+  return /topic_submissions|schema cache/.test(message) ? MIGRATION_0004_HINT : message;
+}
+
+// Loads a PPT event in the caller's group and whether the topics have already been dealt.
+async function loadPptEvent(groupId: string, eventId: string) {
+  const db = adminClient();
+  const found = await db
+    .from("world_events")
+    .select("id, host_id, title, group_id")
+    .eq("id", eventId)
+    .eq("group_id", groupId)
+    .maybeSingle();
+  if (found.error) throw new Error(found.error.message);
+  if (!found.data) throw new Error("Event not found");
+  if (!isPptEvent(found.data.title)) throw new Error("This event has no topic feed");
+  const dealt = await db
+    .from("topic_assignments")
+    .select("member_id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .eq("kind", "topic");
+  if (dealt.error) throw new Error(dealt.error.message);
+  return { event: found.data as { id: string; host_id: string; title: string; group_id: string }, allocated: (dealt.count ?? 0) > 0 };
+}
+
+// Prep write: allowed when the game phase is before or live (see requirePrepOrLive).
+export async function addTopic(eventId: string, topic: string): Promise<ActionResult> {
+  try {
+    const me = await getMember();
+    if (!me) return { ok: false, error: "Ask for your key" };
+    await requirePrepOrLive(me);
+    const text = topic.trim().replace(/\s+/g, " ");
+    if (text.length < 1 || text.length > MAX_TOPIC_LENGTH) {
+      return { ok: false, error: `Topic must be 1 to ${MAX_TOPIC_LENGTH} characters` };
+    }
+    const { event, allocated } = await loadPptEvent(me.group_id, eventId);
+    if (allocated) return { ok: false, error: "Allocation is done, topics are closed" };
+    const db = adminClient();
+    const existing = await db.from("topic_submissions").select("topic").eq("event_id", event.id);
+    if (existing.error) return { ok: false, error: migrationAware(existing.error.message) };
+    if ((existing.data ?? []).some((r: { topic: string }) => r.topic.trim().toLowerCase() === text.toLowerCase())) {
+      return { ok: false, error: "That topic is already in the feed" };
+    }
+    const { error } = await db
+      .from("topic_submissions")
+      .insert({ group_id: me.group_id, event_id: event.id, member_id: me.id, topic: text });
+    return error ? { ok: false, error: migrationAware(error.message) } : { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Server error" };
+  }
+}
+
+// Prep write: members can delete only their own topics, and only before allocation.
+export async function deleteTopic(eventId: string, submissionId: string): Promise<ActionResult> {
+  try {
+    const me = await getMember();
+    if (!me) return { ok: false, error: "Ask for your key" };
+    await requirePrepOrLive(me);
+    const { event, allocated } = await loadPptEvent(me.group_id, eventId);
+    if (allocated) return { ok: false, error: "Allocation is done, topics are closed" };
+    const { error } = await adminClient()
+      .from("topic_submissions")
+      .delete()
+      .eq("id", submissionId)
+      .eq("event_id", event.id)
+      .eq("member_id", me.id);
+    return error ? { ok: false, error: migrationAware(error.message) } : { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Server error" };
+  }
+}
+
+// Live-only (requireLive). Host or group admin deals one submitted topic to every member.
+export async function randomlyAllocate(eventId: string): Promise<ActionResult> {
+  try {
+    const me = await getMember();
+    if (!me) return { ok: false, error: "Ask for your key" };
+    await requireLive(me);
+    const { event } = await loadPptEvent(me.group_id, eventId);
+    if (event.host_id !== me.id && me.role !== "admin") {
+      return { ok: false, error: "Only the host or the admin can allocate" };
+    }
+    const db = adminClient();
+    const quests = await db.from("quests").select("id, title").eq("event_id", event.id);
+    if (quests.error) return { ok: false, error: quests.error.message };
+    const presentationIds = (quests.data ?? [])
+      .filter((q: { title: string }) => isPresentationQuest(q.title))
+      .map((q: { id: string }) => q.id);
+    if (presentationIds.length) {
+      const done = await db
+        .from("quest_completions")
+        .select("quest_id", { count: "exact", head: true })
+        .in("quest_id", presentationIds)
+        .not("completed_at", "is", null);
+      if (done.error) return { ok: false, error: done.error.message };
+      if ((done.count ?? 0) > 0) return { ok: false, error: "A presentation is already done, so topics cannot be reshuffled" };
+    }
+    const [members, subs] = await Promise.all([
+      db.from("members").select("id").eq("group_id", me.group_id),
+      db.from("topic_submissions").select("member_id, topic").eq("event_id", event.id),
+    ]);
+    if (members.error) return { ok: false, error: members.error.message };
+    if (subs.error) return { ok: false, error: migrationAware(subs.error.message) };
+    const result = allocateTopics(
+      (members.data ?? []).map((m: { id: string }) => m.id),
+      (subs.data ?? []) as { member_id: string; topic: string }[],
+    );
+    if (!result.ok) return result;
+    const del = await db.from("topic_assignments").delete().eq("event_id", event.id).eq("kind", "topic");
+    if (del.error) return { ok: false, error: del.error.message };
+    const ins = await db.from("topic_assignments").insert(
+      result.picks.map((p) => ({
+        group_id: me.group_id,
+        event_id: event.id,
+        member_id: p.member_id,
+        kind: "topic",
+        topic: p.topic,
+        revealed: true,
+      })),
+    );
+    return ins.error ? { ok: false, error: ins.error.message } : { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Server error" };
   }

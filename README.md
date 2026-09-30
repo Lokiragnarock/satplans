@@ -31,7 +31,7 @@ The UI polls small JSON endpoints every 3 to 4 seconds (paused while the tab is 
 ## Setup
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/0001_init.sql`, then `0002_template_v2.sql`, then `0003_game_window.sql` (adds `starts_at`, `duration_hours`, `target_hours` to `groups`) in the SQL editor (or `supabase db push`). Then sign in as the admin and set the start time on Home, otherwise the game stays locked.
+2. Run `supabase/migrations/0001_init.sql`, then `0002_template_v2.sql`, then `0003_game_window.sql` (adds `starts_at`, `duration_hours`, `target_hours` to `groups`), then `0004_ppt_night.sql` (PPT Night and the topic feed, see below) in the SQL editor (or `supabase db push`). Then sign in as the admin and set the start time on Home, otherwise the game stays locked.
 3. Copy `.env.example` to `.env.local` and fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings, API). Never expose the service role key to the browser.
 4. Install and create your group:
 
@@ -45,17 +45,30 @@ The UI polls small JSON endpoints every 3 to 4 seconds (paused while the tab is 
 
 If `pnpm` is not on PATH use `corepack pnpm` (the corepack shim may need to be on PATH).
 
+### PPT Night and the topic feed (Halloween)
+
+The default date for the plan is Halloween, Saturday 31 Oct 2026 (Scooter Day 10:00, PPT Night 20:00, House Party 21:00, Asia/Kolkata). `0004_ppt_night.sql` (paste into the SQL editor, safe to re-run) creates the `topic_submissions` table, sets those times and the game start (10:00 on 31 Oct) for "Ballin On Sats", creates **PPT Night** hosted by the admin, and moves the `Presentation: <name>` quests out of House Party into it. It also replaces `load_saturday_template` so new groups get the same layout.
+
+On a PPT event page (any event whose title contains "PPT"):
+
+1. **Topic feed.** Any member adds niche topics (1 to 120 characters) and can delete their own until allocation. The feed shows each topic, who added it and when, newest first, with a count. Adding and deleting work before the game starts and while it is live, not when the start time is unset or the game is over.
+2. **Randomly allocate.** The host or the admin presses the button once there are at least as many topics as members. Each member gets one distinct topic, avoiding their own submission when possible (`lib/allocate.ts`). Allocation itself is live-only like every other gameplay action, and can be redone until a presentation is marked done. After allocation the feed is closed and the page lists each member's topic under "Allocations".
+3. **Presentations.** One row per member with their topic ("Waiting for allocation" until dealt), Done or Not done, and another member confirms. No AI, you have to present and talk.
+
+Before 0004 is applied the page still loads; the topic feed tells the admin to apply the migration.
+
 ### Saturday template ("Ballin On Sats")
 
 The admin sees a **Load Saturday template** button on the dashboard (once per group). It creates:
 
 - Group targets: Run 20 km, Squats 300, Free throw line shots 1500, Bottle flips 200 (shown as group totals only).
 - **Scooter Day** (spot-based): rent scooters, airport stop, reel shoot, vlog (all group-wide).
-- **House Party** (night): Minecraft one shot, Monopoly 20 rounds (group counter), cook food (group-wide), delete Insta and Snapchat (each member), and one presentation quest per member confirmed by another member. Needs `0002_template_v2.sql`.
+- **PPT Night**: one presentation quest per member, confirmed by another member.
+- **House Party** (night): Minecraft one shot, Monopoly 20 rounds (group counter), cook food (group-wide), delete Insta and Snapchat (each member). Needs `0004_ppt_night.sql` for the PPT split (0002 otherwise).
 
 The database still has legacy `xp` and `stake_xp` columns from the original schema. The app ignores them: it never reads or shows them and always passes 0 when calling the SQL functions.
 
-Hosts can randomly assign presentation topics and dishes from a list on the event page; dishes stay hidden until the host presses Reveal.
+Hosts can randomly assign dishes (and, on non-PPT events, topics) from a list on the event page; dishes stay hidden until the host presses Reveal.
 
 `supabase/seed.sql` does the same for a demo group with three demo members and prints their links. Use it only for local trials.
 

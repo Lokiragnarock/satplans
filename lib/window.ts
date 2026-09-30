@@ -183,3 +183,26 @@ export function toLocalInput(iso: string | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+// Prep actions (adding or deleting PPT topics) are allowed before the game and while it is live.
+export function prepLockReason(phase: GamePhase): string | null {
+  switch (phase) {
+    case "unset":
+      return "The admin has not set the start time yet";
+    case "ended":
+      return "The game is over, view only";
+    default:
+      return null;
+  }
+}
+
+export function relativeTime(iso: string, now: Date | number): string {
+  const nowMs = typeof now === "number" ? now : now.getTime();
+  const sec = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000));
+  if (sec < 45) return "just now";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} h ago`;
+  return `${Math.round(h / 24)} d ago`;
+}
