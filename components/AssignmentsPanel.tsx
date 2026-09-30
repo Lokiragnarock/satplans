@@ -12,11 +12,12 @@ interface Props {
   meId: string;
   isHost: boolean;
   busy: boolean;
+  locked: boolean;
   onAssign: (items: string[]) => void;
   onReveal: () => void;
 }
 
-export function AssignmentsPanel({ title, hint, assignments, members, meId, isHost, busy, onAssign, onReveal }: Props) {
+export function AssignmentsPanel({ title, hint, assignments, members, meId, isHost, busy, locked, onAssign, onReveal }: Props) {
   const [text, setText] = useState("");
   const name = (id: string) => members.find((m) => m.id === id)?.display_name ?? "?";
   const allRevealed = assignments.length > 0 && assignments.every((a) => a.revealed);
@@ -41,7 +42,7 @@ export function AssignmentsPanel({ title, hint, assignments, members, meId, isHo
           ))}
         </ul>
       )}
-      {isHost && (
+      {isHost && !locked && (
         <form
           className="space-y-2"
           onSubmit={(e) => {

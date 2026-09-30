@@ -1,6 +1,8 @@
 import { adminClient } from "@/lib/supabase";
 import { must, withMember } from "@/lib/api";
-import type { Challenge, ChallengesData, GroupInfo, MemberLite } from "@/lib/types";
+import { loadGroupRow, toGroupInfo } from "@/lib/game";
+import { gameInfoFromRow } from "@/lib/window";
+import type { Challenge, ChallengesData, MemberLite } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +10,7 @@ export function GET() {
   return withMember(async (me): Promise<ChallengesData> => {
     const db = adminClient();
     const [group, members, challenges] = await Promise.all([
-      db.from("groups").select("*").eq("id", me.group_id).single(),
+      loadGroupRow(me.group_id),
       db.from("members").select("id, display_name, role").eq("group_id", me.group_id),
       db
         .from("challenges")
@@ -20,7 +22,8 @@ export function GET() {
     ]);
     return {
       me,
-      group: must(group) as GroupInfo,
+      group: toGroupInfo(group),
+      game: gameInfoFromRow(group),
       members: must(members) as MemberLite[],
       challenges: must(challenges) as Challenge[],
     };

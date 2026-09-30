@@ -10,6 +10,7 @@ interface Props {
   targets: GroupTarget[];
   busy: boolean;
   isAdmin: boolean;
+  locked: boolean;
   templateLoaded: boolean;
   onLog: (targetId: string, amount: number) => void;
   onLoadTemplate: () => void;
@@ -57,7 +58,7 @@ function LogForm({ unit, accent, busy, onLog }: { unit: string; accent: Accent; 
   );
 }
 
-export function TargetsPanel({ targets, busy, isAdmin, templateLoaded, onLog, onLoadTemplate }: Props) {
+export function TargetsPanel({ targets, busy, isAdmin, locked, templateLoaded, onLog, onLoadTemplate }: Props) {
   return (
     <section>
       <h2 className="label-md mb-3 flex items-center gap-2 text-on-surface-variant">
@@ -87,7 +88,7 @@ export function TargetsPanel({ targets, busy, isAdmin, templateLoaded, onLog, on
                   </p>
                 </div>
               </div>
-              <LogForm unit={t.unit} accent={accent} busy={busy} onLog={(n) => onLog(t.id, n)} />
+              <LogForm unit={t.unit} accent={accent} busy={busy || locked} onLog={(n) => onLog(t.id, n)} />
               <div className="mt-3">
                 <ProgressBar pct={p.pct} accent={accent} />
               </div>
@@ -95,7 +96,7 @@ export function TargetsPanel({ targets, busy, isAdmin, templateLoaded, onLog, on
           );
         })}
       </div>
-      {isAdmin && !templateLoaded && (
+      {isAdmin && !templateLoaded && !locked && (
         <Button className="mt-4 w-full" variant="ghost" disabled={busy} onClick={onLoadTemplate}>
           Load Saturday template
         </Button>

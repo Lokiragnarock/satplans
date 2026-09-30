@@ -1,14 +1,18 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { adminClient } from "@/lib/supabase";
 import { getMember } from "@/lib/session";
+import { requireLive } from "@/lib/game";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+// Every gameplay write goes through here, and requireLive blocks it unless the game is live.
 async function call(name: string, args: Record<string, unknown> = {}): Promise<ActionResult> {
   try {
     const me = await getMember();
     if (!me) return { ok: false, error: "Ask for your key" };
+    await requireLive(me);
     const { error } = await adminClient().rpc(name, { p_member: me.id, ...args });
     return error ? { ok: false, error: error.message } : { ok: true };
   } catch (e) {
@@ -99,4 +103,60 @@ export async function respondChallenge(id: string, accept: boolean) {
 
 export async function resolveChallenge(id: string, action: "propose" | "confirm" | "dispute", winnerId?: string) {
   return call("resolve_challenge", { p_challenge: id, p_action: action, p_winner: winnerId ?? null });
+}
+
+const MIGRATION_HINT = "Apply supabase/migrations/0003_game_window.sql first";
+
+// Admin only, allowed in any phase. The admin check uses the member resolved from the cookie key.
+export async function setGameSettings(input: { startsAt: string; targetHours: number | null }): Promise<ActionResult> {
+  try {
+    const me = await getMember();
+    if (!me) return { ok: false, error: "Ask for your key" };
+    if (me.role !== "admin") return { ok: false, error: "Only the admin can change the game settings" };
+    const start = new Date(input.startsAt);
+    if (Number.isNaN(start.getTime())) return { ok: false, error: "Pick a valid start date and time" };
+    const target = input.targetHours;
+    if (target !== null && (!Number.isInteger(target) || target < 1 || target > 10000)) {
+      return { ok: false, error: "Hours goal must be a whole number of hours" };
+    }
+    const { error } = await adminClient()
+      .from("groups")
+      .update({ starts_at: start.toISOString(), target_hours: target })
+      .eq("id", me.group_id);
+    if (error) {
+      return { ok: false, error: /starts_at|target_hours|duration_hours/.test(error.message) ? MIGRATION_HINT : error.message };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Server error" };
+  }
+}
+
+export type AddMemberResult = { ok: true; key: string; name: string } | { ok: false; error: string };
+
+// Admin only, allowed in any phase. Returns the new personal key once; it is never listed afterwards.
+export async function addMember(name: string): Promise<AddMemberResult> {
+  try {
+    const me = await getMember();
+    if (!me) return { ok: false, error: "Ask for your key" };
+    if (me.role !== "admin") return { ok: false, error: "Only the admin can add members" };
+    const display = name.trim().replace(/\s+/g, " ");
+    if (!display) return { ok: false, error: "Enter a name" };
+    if (display.length > 40) return { ok: false, error: "Keep the name under 40 characters" };
+    const db = adminClient();
+    const existing = await db.from("members").select("display_name").eq("group_id", me.group_id);
+    if (existing.error) return { ok: false, error: existing.error.message };
+    const taken = (existing.data ?? []).some(
+      (m: { display_name: string }) => m.display_name.trim().toLowerCase() === display.toLowerCase(),
+    );
+    if (taken) return { ok: false, error: `${display} is already in the squad` };
+    const key = randomBytes(24).toString("base64url");
+    const { error } = await db
+      .from("members")
+      .insert({ group_id: me.group_id, display_name: display, role: "member", access_key: key });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, key, name: display };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Server error" };
+  }
 }

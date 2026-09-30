@@ -5,10 +5,11 @@ import { Button, Card, inputClass } from "./ui";
 
 interface Props {
   busy: boolean;
+  locked: string | null;
   onCreate: (input: { title: string; spot: string; scheduledAt: string; minAttendees: number }) => Promise<boolean>;
 }
 
-export function EventForm({ busy, onCreate }: Props) {
+export function EventForm({ busy, locked, onCreate }: Props) {
   const [title, setTitle] = useState("");
   const [spot, setSpot] = useState("");
   const [when, setWhen] = useState("");
@@ -16,6 +17,7 @@ export function EventForm({ busy, onCreate }: Props) {
 
   return (
     <Card title="Schedule a world event" icon="event">
+      {locked && <p className="mb-3 rounded-lg bg-surface-container-high px-3 py-2 text-sm text-on-surface/80">{locked}</p>}
       <form
         className="space-y-2"
         onSubmit={async (e) => {
@@ -28,6 +30,7 @@ export function EventForm({ busy, onCreate }: Props) {
           }
         }}
       >
+        <fieldset disabled={locked !== null} className="space-y-2 disabled:opacity-50">
         <input className={inputClass} placeholder="Title" required value={title} onChange={(e) => setTitle(e.target.value)} />
         <input
           className={inputClass}
@@ -47,9 +50,10 @@ export function EventForm({ busy, onCreate }: Props) {
             onChange={(e) => setMin(e.target.value)}
           />
         </label>
-        <Button type="submit" className="w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy || locked !== null}>
           Create event
         </Button>
+        </fieldset>
       </form>
     </Card>
   );

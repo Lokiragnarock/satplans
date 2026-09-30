@@ -1,4 +1,4 @@
-import type { ChallengeStatus } from "./window";
+import type { ChallengeStatus, GameWindowInfo } from "./window";
 
 export interface Me {
   id: string;
@@ -19,8 +19,6 @@ export interface GroupInfo {
   timezone: string;
   night_start_hour: number;
   night_end_hour: number;
-  daily_target_minutes: number;
-  weekly_target_minutes: number;
   template_loaded: boolean;
 }
 
@@ -46,6 +44,7 @@ export interface DashboardData {
   members: MemberLite[];
   entries: TimeEntry[];
   targets: GroupTarget[];
+  game: GameWindowInfo;
 }
 
 export type EventStatus = "scheduled" | "gathering" | "active" | "completed";
@@ -94,6 +93,7 @@ export interface EventDetail {
   questsHidden: boolean;
   completions: QuestCompletion[];
   assignments: Assignment[];
+  game: GameWindowInfo;
 }
 
 export interface Challenge {
@@ -112,4 +112,11 @@ export interface ChallengesData {
   group: GroupInfo;
   members: MemberLite[];
   challenges: Challenge[];
+  game: GameWindowInfo;
+}
+
+export interface EventsData {
+  me: Me;
+  events: WorldEvent[];
+  game: GameWindowInfo;
 }

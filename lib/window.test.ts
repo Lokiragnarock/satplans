@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   effectiveChallengeStatus,
+  formatCountdown,
   formatDuration,
+  gameInfoFromRow,
+  gamePhase,
+  gameWindow,
+  lockReason,
   isNightWindow,
   minutesInPeriod,
   periodBounds,
@@ -85,5 +90,91 @@ describe("challenge expiry", () => {
     expect(remainingMs("2026-10-03T22:10:00Z", now)).toBe(600000);
     expect(formatDuration(600000)).toBe("10:00");
     expect(formatDuration(3725000)).toBe("1:02:05");
+  });
+});
+
+describe("gamePhase", () => {
+  const start = "2026-10-03T09:00:00Z";
+  const startMs = new Date(start).getTime();
+  const H = 3600000;
+
+  it("is unset without a start time", () => {
+    expect(gamePhase(new Date(), null, 24)).toBe("unset");
+    expect(gamePhase(new Date(), undefined, 24)).toBe("unset");
+    expect(gamePhase(new Date(), "not a date", 24)).toBe("unset");
+    expect(gameWindow(new Date(), null, 24)).toMatchObject({ endsAt: null, msUntilStart: null, msUntilEnd: null });
+  });
+
+  it("is before until exactly the start, live at the start", () => {
+    expect(gamePhase(startMs - 1, start, 24)).toBe("before");
+    expect(gamePhase(startMs, start, 24)).toBe("live");
+  });
+
+  it("is live until exactly the end, ended at the end", () => {
+    expect(gamePhase(startMs + 24 * H - 1, start, 24)).toBe("live");
+    expect(gamePhase(startMs + 24 * H, start, 24)).toBe("ended");
+  });
+
+  it("respects other durations", () => {
+    expect(gamePhase(startMs + 2 * H - 1, start, 2)).toBe("live");
+    expect(gamePhase(startMs + 2 * H, start, 2)).toBe("ended");
+    expect(gamePhase(startMs + 24 * H, start, 48)).toBe("live");
+    expect(gamePhase(startMs + 168 * H, start, 168)).toBe("ended");
+  });
+
+  it("reports endsAt and the time remaining", () => {
+    const before = gameWindow(startMs - 5 * 60000, start, 24);
+    expect(before.endsAt?.toISOString()).toBe("2026-10-04T09:00:00.000Z");
+    expect(before.msUntilStart).toBe(300000);
+    expect(before.msUntilEnd).toBe(24 * H + 300000);
+    const live = gameWindow(startMs + 10 * H, start, 24);
+    expect(live.msUntilStart).toBe(0);
+    expect(live.msUntilEnd).toBe(14 * H);
+    const ended = gameWindow(startMs + 30 * H, start, 24);
+    expect(ended.msUntilEnd).toBe(0);
+  });
+});
+
+describe("gameInfoFromRow", () => {
+  it("degrades to unset when the migration columns are missing", () => {
+    const info = gameInfoFromRow({ id: "g" });
+    expect(info).toMatchObject({ phase: "unset", startsAt: null, durationHours: 24, targetHours: 24, endsAt: null });
+  });
+
+  it("uses target_hours when set and the duration otherwise", () => {
+    const now = new Date("2026-10-03T10:00:00Z");
+    const a = gameInfoFromRow({ starts_at: "2026-10-03T09:00:00Z", duration_hours: 12, target_hours: null }, now);
+    expect(a).toMatchObject({ phase: "live", durationHours: 12, targetHours: 12, endsAt: "2026-10-03T21:00:00.000Z" });
+    const b = gameInfoFromRow({ starts_at: "2026-10-03T09:00:00Z", duration_hours: 24, target_hours: 30 }, now);
+    expect(b.targetHours).toBe(30);
+  });
+});
+
+describe("lock messages and countdown", () => {
+  it("has a reason for every non-live phase", () => {
+    expect(lockReason("unset")).toBe("The admin has not set the start time yet");
+    expect(lockReason("before")).toBeTruthy();
+    expect(lockReason("ended")).toBeTruthy();
+    expect(lockReason("live")).toBeNull();
+  });
+
+  it("formats days, hours and minutes", () => {
+    expect(formatCountdown((2 * 1440 + 11 * 60 + 20) * 60000)).toBe("2d 11h 20m");
+    expect(formatCountdown((14 * 60 + 5) * 60000)).toBe("14h 05m");
+    expect(formatCountdown(0)).toBe("0h 00m");
+  });
+});
+
+describe("hours clipped to the game window", () => {
+  const start = new Date("2026-10-03T09:00:00Z");
+  const end = new Date("2026-10-04T09:00:00Z");
+  const now = new Date("2026-10-05T00:00:00Z");
+
+  it("ignores time before the start and stops an open entry at the end", () => {
+    const spans = [
+      { started_at: "2026-10-03T08:00:00Z", ended_at: "2026-10-03T10:00:00Z" },
+      { started_at: "2026-10-04T07:00:00Z", ended_at: null },
+    ];
+    expect(minutesInPeriod(spans, start, end, now)).toBe(60 + 120);
   });
 });

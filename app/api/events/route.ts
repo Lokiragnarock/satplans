@@ -1,11 +1,12 @@
 import { adminClient } from "@/lib/supabase";
 import { must, withMember } from "@/lib/api";
-import type { WorldEvent } from "@/lib/types";
+import { loadGame } from "@/lib/game";
+import type { EventsData, WorldEvent } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export function GET() {
-  return withMember(async (me) => {
+  return withMember(async (me): Promise<EventsData> => {
     const db = adminClient();
     const rows = must(
       await db
@@ -18,6 +19,6 @@ export function GET() {
       ...e,
       attendees: event_attendance[0]?.count ?? 0,
     }));
-    return { me, events };
+    return { me, events, game: await loadGame(me.group_id) };
   });
 }

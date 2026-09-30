@@ -1,5 +1,6 @@
 import { adminClient } from "@/lib/supabase";
 import { must, withMember } from "@/lib/api";
+import { loadGame } from "@/lib/game";
 import type { Assignment, EventDetail, MemberLite, Quest, QuestCompletion, WorldEvent } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
       questsHidden: !showQuests,
       completions: completions as QuestCompletion[],
       assignments: assignmentRows,
+      game: await loadGame(me.group_id),
     };
   });
 }

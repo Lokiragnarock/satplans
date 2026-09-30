@@ -10,12 +10,13 @@ interface Props {
   hostName: string;
   iAmHere: boolean;
   busy: boolean;
+  locked: string | null;
   onHere: () => void;
   onStart: () => void;
   onComplete: () => void;
 }
 
-export function AttendancePanel({ event, members, attendees, isHost, hostName, iAmHere, busy, onHere, onStart, onComplete }: Props) {
+export function AttendancePanel({ event, members, attendees, isHost, hostName, iAmHere, busy, locked, onHere, onStart, onComplete }: Props) {
   const over = event.status === "completed";
   const canStart = isHost && (event.status === "scheduled" || event.status === "gathering");
   const enough = attendees.length >= event.min_attendees;
@@ -48,11 +49,12 @@ export function AttendancePanel({ event, members, attendees, isHost, hostName, i
         })}
       </ul>
       <div className="flex flex-col gap-2">
+        {locked && <p className="text-xs text-on-surface/60">{locked}</p>}
         {!over && (
           <Button
             variant={iAmHere ? "ghost" : accentVariant}
             className="!h-14 !text-xl"
-            disabled={busy || iAmHere}
+            disabled={busy || iAmHere || locked !== null}
             onClick={onHere}
           >
             {iAmHere ? "You are here" : "I'm here"}
@@ -60,7 +62,7 @@ export function AttendancePanel({ event, members, attendees, isHost, hostName, i
         )}
         {canStart && (
           <>
-            <Button variant={accentVariant} disabled={busy || !enough} onClick={onStart}>
+            <Button variant={accentVariant} disabled={busy || !enough || locked !== null} onClick={onStart}>
               Start world event
             </Button>
             {!enough && (
@@ -71,7 +73,7 @@ export function AttendancePanel({ event, members, attendees, isHost, hostName, i
           </>
         )}
         {isHost && event.status === "active" && (
-          <Button variant="ghost" disabled={busy} onClick={onComplete}>
+          <Button variant="ghost" disabled={busy || locked !== null} onClick={onComplete}>
             Complete event
           </Button>
         )}
